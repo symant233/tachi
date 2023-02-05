@@ -44,8 +44,12 @@ class LocalSource(private val context: Context) : CatalogueSource {
                 input.close()
                 return null
             }
-            val cover = File("${dir.absolutePath}/${manga.url}", COVER_NAME)
-
+            if (manga.single) { // single archive file
+                val cover = File("${dir.absolutePath}/cover/${manga.name}.jpg")
+            } else {
+                val cover = File("${dir.absolutePath}/${manga.url}", COVER_NAME)
+            }
+            
             // It might not exist if using the external SD card
             cover.parentFile?.mkdirs()
             input.use {
@@ -57,7 +61,7 @@ class LocalSource(private val context: Context) : CatalogueSource {
         }
 
         private fun getBaseDirectories(context: Context): List<File> {
-            val c = context.getString(R.string.app_name) + File.separator + "local"
+            val c: String = context.getString(R.string.app_name) + File.separator + "local"
             return DiskUtil.getExternalStorages(context).map { File(it.absolutePath, c) }
         }
     }
@@ -79,7 +83,6 @@ class LocalSource(private val context: Context) : CatalogueSource {
             .asSequence()
             .mapNotNull { it.listFiles()?.toList() }
             .flatten()
-            .filter { it.isDirectory }
             .filter { if (time == 0L) it.name.contains(query, ignoreCase = true) else it.lastModified() >= time }
             .distinctBy { it.name }
 
@@ -105,14 +108,15 @@ class LocalSource(private val context: Context) : CatalogueSource {
             SManga.create().apply {
                 title = mangaDir.name
                 url = mangaDir.name
+                if (!mangaDir.isDirectory){
+                    single = true // single archive file
+                }
 
                 // Try to find the cover
-                for (dir in baseDirs) {
-                    val cover = File("${dir.absolutePath}/$url", COVER_NAME)
-                    if (cover.exists()) {
-                        thumbnail_url = cover.absolutePath
-                        break
-                    }
+                val dir = getBaseDirectories(context).firstOrNull()
+                val cover = File("${dir.absolutePath}/$url", COVER_NAME)
+                if (cover.exists()) {
+                    thumbnail_url = cover.absolutePath
                 }
 
                 val chapters = fetchChapterList(this).toBlocking().first()
@@ -166,6 +170,34 @@ class LocalSource(private val context: Context) : CatalogueSource {
     }
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
+        if (mange.single) {
+            val chapters = getBaseDirectories(context)
+                .asSequence()
+                .mapNotNull { File(it, manga.url) }
+                .flatten()
+                .filter { isSupportedFile(it.extension) }
+                .map { chapterFile ->
+                    SChapter.create().apply {
+                        url = chapterFile.name
+                        name = if (chapterFile.isDirectory) {
+                            chapterFile.name
+                        } else {
+                            chapterFile.nameWithoutExtension
+                        }
+                        date_upload = chapterFile.lastModified()
+
+                        val format = getFormat(this)
+                        if (format is Format.Epub) {
+                            EpubFile(format.file).use { epub ->
+                                epub.fillChapterMetadata(this)
+                            }
+                        }
+                        ChapterRecognition.parseChapterNumber(this, manga)
+                    }
+                }
+                .toList()
+            return chapters
+        }
         val chapters = getBaseDirectories(context)
             .asSequence()
             .mapNotNull { File(it, manga.url).listFiles()?.toList() }

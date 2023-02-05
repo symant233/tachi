@@ -19,4 +19,6 @@ class SMangaImpl : SManga {
     override var thumbnail_url: String? = null
 
     override var initialized: Boolean = false
+
+    override var single: Boolean = false
 }

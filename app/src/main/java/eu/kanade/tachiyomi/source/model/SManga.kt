@@ -22,6 +22,8 @@ interface SManga : Serializable {
 
     var initialized: Boolean
 
+    var single: Boolean // single archive file
+
     fun copyFrom(other: SManga) {
         if (other.author != null) {
             author = other.author

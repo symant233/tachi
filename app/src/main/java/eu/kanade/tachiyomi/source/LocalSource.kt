@@ -175,26 +175,27 @@ class LocalSource(private val context: Context) : CatalogueSource {
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         if (manga.single) {
             val dir = getBaseDirectories(context).firstOrNull()
-            if (dir == null) { return null }
-            val chapterFile = File("${dir.absolutePath}/${manga.url}")
-            val chapter = SChapter.create().apply {
-                url = chapterFile.name
-                name = if (chapterFile.isDirectory) {
-                    chapterFile.name
-                } else {
-                    chapterFile.nameWithoutExtension
-                }
-                date_upload = chapterFile.lastModified()
-
-                val format = getFormat(this)
-                if (format is Format.Epub) {
-                    EpubFile(format.file).use { epub ->
-                        epub.fillChapterMetadata(this)
+            if (dir != null) {
+                val chapterFile = File("${dir.absolutePath}/${manga.url}")
+                val chapter = SChapter.create().apply {
+                    url = chapterFile.name
+                    name = if (chapterFile.isDirectory) {
+                        chapterFile.name
+                    } else {
+                        chapterFile.nameWithoutExtension
                     }
+                    date_upload = chapterFile.lastModified()
+
+                    val format = getFormat(this)
+                    if (format is Format.Epub) {
+                        EpubFile(format.file).use { epub ->
+                            epub.fillChapterMetadata(this)
+                        }
+                    }
+                    ChapterRecognition.parseChapterNumber(this, manga)
                 }
-                ChapterRecognition.parseChapterNumber(this, manga)
+                return Observable.just(listOf(chapter))
             }
-            return Observable.just([chapter])
         }
         val chapters = getBaseDirectories(context)
             .asSequence()

@@ -44,10 +44,11 @@ class LocalSource(private val context: Context) : CatalogueSource {
                 input.close()
                 return null
             }
+            val cover: File
             if (manga.single) { // single archive file
-                val cover = File("${dir.absolutePath}/cover/${manga.url}.jpg")
+                cover = File("${dir.absolutePath}/cover/${manga.url}.jpg")
             } else {
-                val cover = File("${dir.absolutePath}/${manga.url}", COVER_NAME)
+                cover = File("${dir.absolutePath}/${manga.url}", COVER_NAME)
             }
             
             // It might not exist if using the external SD card
@@ -173,32 +174,27 @@ class LocalSource(private val context: Context) : CatalogueSource {
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         if (manga.single) {
-            val chapters = getBaseDirectories(context)
-                .asSequence()
-                .mapNotNull { File(it, manga.url) }
-                .flatten()
-                .filter { isSupportedFile(it.extension) }
-                .map { chapterFile ->
-                    SChapter.create().apply {
-                        url = chapterFile.name
-                        name = if (chapterFile.isDirectory) {
-                            chapterFile.name
-                        } else {
-                            chapterFile.nameWithoutExtension
-                        }
-                        date_upload = chapterFile.lastModified()
+            val dir = getBaseDirectories(context).firstOrNull()
+            if (dir == null) { return null }
+            val chapterFile = File("${dir.absolutePath}/${manga.url}")
+            val chapter = SChapter.create().apply {
+                url = chapterFile.name
+                name = if (chapterFile.isDirectory) {
+                    chapterFile.name
+                } else {
+                    chapterFile.nameWithoutExtension
+                }
+                date_upload = chapterFile.lastModified()
 
-                        val format = getFormat(this)
-                        if (format is Format.Epub) {
-                            EpubFile(format.file).use { epub ->
-                                epub.fillChapterMetadata(this)
-                            }
-                        }
-                        ChapterRecognition.parseChapterNumber(this, manga)
+                val format = getFormat(this)
+                if (format is Format.Epub) {
+                    EpubFile(format.file).use { epub ->
+                        epub.fillChapterMetadata(this)
                     }
                 }
-                .toList()
-            return chapters
+                ChapterRecognition.parseChapterNumber(this, manga)
+            }
+            return Observable.just([chapter])
         }
         val chapters = getBaseDirectories(context)
             .asSequence()

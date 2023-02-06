@@ -19,8 +19,6 @@ jobs:
       run: chmod +x ./gradlew
     - name: Build Release APK
       run: ./gradlew assembleStandardRelease
-    - name: Releasing using Hub
-      uses: r0user/release-apk@main
-      env:
-       GITHUB_TOKEN: ${{ secrets.TOKEN }}
-       APP_FOLDER: app
+    - uses: actions/upload-artifact@v3
+      with:
+        path: app/**/*.apk

@@ -84,6 +84,7 @@ class LocalSource(private val context: Context) : CatalogueSource {
             .asSequence()
             .mapNotNull { it.listFiles()?.toList() }
             .flatten()
+            .filter { it.isDirectory || isSupportedFile(it.extension) }
             .filter { if (time == 0L) it.name.contains(query, ignoreCase = true) else it.lastModified() >= time }
             .distinctBy { it.name }
 
@@ -178,7 +179,7 @@ class LocalSource(private val context: Context) : CatalogueSource {
             if (dir != null) {
                 val chapterFile = File("${dir.absolutePath}/${manga.url}")
                 val chapter = SChapter.create().apply {
-                    url = chapterFile.name
+                    url = manga.url
                     name = if (chapterFile.isDirectory) {
                         chapterFile.name
                     } else {

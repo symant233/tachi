@@ -19,7 +19,7 @@ jobs:
     - name: Make Gradle executable
       run: chmod +x ./gradlew
     - name: Build Release APK
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug
     - uses: actions/upload-artifact@v3
       with:
         path: app/**/*.apk

@@ -45,7 +45,7 @@ class LocalSource(private val context: Context) : CatalogueSource {
                 return null
             }
             if (manga.single) { // single archive file
-                val cover = File("${dir.absolutePath}/cover/${manga.name}.jpg")
+                val cover = File("${dir.absolutePath}/cover/${manga.url}.jpg")
             } else {
                 val cover = File("${dir.absolutePath}/${manga.url}", COVER_NAME)
             }
@@ -113,10 +113,12 @@ class LocalSource(private val context: Context) : CatalogueSource {
                 }
 
                 // Try to find the cover
-                val dir = getBaseDirectories(context).firstOrNull()
-                val cover = File("${dir.absolutePath}/$url", COVER_NAME)
-                if (cover.exists()) {
-                    thumbnail_url = cover.absolutePath
+                for (dir in baseDirs) {
+                    val cover = File("${dir.absolutePath}/$url", COVER_NAME)
+                    if (cover.exists()) {
+                        thumbnail_url = cover.absolutePath
+                        break
+                    }
                 }
 
                 val chapters = fetchChapterList(this).toBlocking().first()
@@ -170,7 +172,7 @@ class LocalSource(private val context: Context) : CatalogueSource {
     }
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
-        if (mange.single) {
+        if (manga.single) {
             val chapters = getBaseDirectories(context)
                 .asSequence()
                 .mapNotNull { File(it, manga.url) }
